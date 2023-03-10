@@ -5,7 +5,7 @@
 #= Rockchip burn online
 #< https://github.com/hyphop/rockchip-burn
 
-## VER 0.11111
+## VER 0.111111
 
 HELP(){ cat <<HELP
 USAGE rockchip-burn [IMAGE_NAME] [ARGS...]
@@ -164,6 +164,7 @@ case $MODE in
     GET "$NAME" "$SOURCE?$RND" dl/ || FAIL "download update fail"
     grep -m1 "^## VER" dl/$NAME
     cp dl/$NAME $NAME || FAIL "update fail..."
+    MSG "OKAY self updated"
     exit 0
     ;;
     write)

@@ -75,6 +75,8 @@ CHK(){
     }
 }
 
+echo "rockchip-burn $@">&2
+
 mkdir -p $TOOL_BIN || FAIL "mkdir $TOOL_BIN"
 mkdir -p $TOOL_HOME/dl || FAIL "mkdir dl"
 
@@ -107,10 +109,15 @@ CMD cd $TOOL_HOME || FAIL "cd fail"
 DST=${DST-emmc}
 TYPE=sd
 
+RESET=1
+
 for a in "$@"; do
     case $a in
 	--clean)
 	MODE=clean
+	;;
+	--no-reset)
+	RESET=
 	;;
 	--r|--refresh)
 	REFRESH=1
@@ -161,12 +168,32 @@ IMG=${PKG%.*}
 
 CHK "$FILE" "$DL$FILE" dl/ || FAIL "oops $FILE"
 
+gz=
+xz=
+
+UP(){
 gz=$(which pigz || which gzip)
+xz=$(which pixz || which xz)
+}
+
+UP
+
+INSTALL(){
+    MSG "install $@, need admin permissions!"
+    CMD sudo apt install $@ || FAIL "please install it manualy"
+    UP
+}
 
 case $PKG in
     *.gz)
+    [ "$gz" ] || INSTALL gzip pigz
     MSG "decompress $PKG wait..."
     CMD $gz -dc $PKG > $IMG || FAIL "decompress fail"
+    ;;
+    *.xz)
+    [ "$xz" ] || INSTALL pixz xz
+    MSG "decompress $PKG wait..."
+    CMD $xz -dc $PKG > $IMG || FAIL "decompress fail"
     ;;
 esac
 
@@ -185,8 +212,6 @@ echo
 echo "[i] check is ready ..."
 $TOOL TD || $TOOL DB bin/$LOADER || exit 4
 
-RESET_CMD="echo RD 0"
-
 case $DST in
     spi)
 (
@@ -197,11 +222,16 @@ sleep 2
 echo SSD
 echo 5
 echo WL 0 $IMG
-$RESET_CMD
 echo Q
-) | $TOOL && echo "\n[i] OKAY done $IMG > $DST"
+) | $TOOL || FAIL "oops"
     ;;
     emmc)
-    CMD $TOOL WL 0 "$IMG" && echo "\n[i] OKAY done $IMG > $DST"
+    CMD $TOOL WL 0 "$IMG" || FIAL "oops"
     ;;
 esac
+
+[ "$FILE" ] && \
+echo "\n[i] OKAY $FILE was written to $DST"
+
+[ "$RESET" ] && MSG "reset device" && CMD $TOOL RD 0
+[ "$RESET" ] || MSG "no reset device"

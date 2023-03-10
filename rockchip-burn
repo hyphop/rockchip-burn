@@ -45,7 +45,7 @@ LOADER=${LOADER-rk3588_spl_loader_v1.07.111.bin}
 TOOL=${TOOL-upgrade_tool}
 
 TOOL_DL=${TOOL_DL-https://raw.githubusercontent.com/khadas/utils/master/rk-flash-tool/tools/Linux_Upgrade_Tool/$TOOL}
-LOADER_DL=${LOADER_DL-https://dl.radxa.com/rock5/sw/images/loader/$LOADER}
+LOADER_DL=${LOADER_DL-http://dl.khadas.com/products/edge2/firmware/boot/$LOADER}
 
 TOOL_HOME=~/upgrade_tool
 TOOL_BIN=$TOOL_HOME/bin

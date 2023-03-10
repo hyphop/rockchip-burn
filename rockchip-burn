@@ -184,7 +184,7 @@ case $MODE in
     update)
     MSG "self update mode $(pwd) < $NAME"
     GET "$NAME" "$SOURCE" dl/ || FAIL "download update fail"
-    grep "## VER" dl/$NAME
+    grep -m1 "^## VER" dl/$NAME
     cp dl/$NAME $NAME || FAIL "update fail..."
     exit 0
     ;;

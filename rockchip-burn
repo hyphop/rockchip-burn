@@ -1,0 +1,9 @@
+#!/bin/sh
+
+## hyphop ##
+
+#= Rockchip burn
+
+LOADER=${LOADER-rk3588_spl_loader_v1.07.111.bin}
+TOOL=${TOOL-upgrade_root}
+

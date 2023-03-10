@@ -112,6 +112,9 @@ for a in "$@"; do
 	--clean)
 	MODE=clean
 	;;
+	--r|--refresh)
+	REFRESH=1
+	;;
 	--spi)
 	DST=spi
 	TYPE=spi
@@ -147,6 +150,14 @@ esac
 
 PKG=dl/$FILE
 IMG=${PKG%.*}
+
+[ "$REFRESH" ] && {
+    MSG "refresh mode"
+    [ -s "dl/$FILE" ] && {
+	MSG "refresh $FILE"
+	rm -rf "dl/$FILE" "dl/$FILE.okay"
+    }
+}
 
 CHK "$FILE" "$DL$FILE" dl/ || FAIL "oops $FILE"
 

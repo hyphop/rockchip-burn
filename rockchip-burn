@@ -19,6 +19,10 @@ ARGS
     --clean
     --help
 
+IMAGE_NAME
+
+    oowow | android | ubuntu
+
 EXAMPLES
 
     ONLINE
@@ -159,10 +163,20 @@ which $TOOL || FAIL "cant find $TOOL"
 
 BOARD=${BOARD-edge2}
 
+DL=http://dl.khadas.com/.images/$BOARD/
+
 case $SRC in
     oowow)
     DL=http://dl.khadas.com/products/oowow/system/
     FILE=$BOARD-oowow-latest-$TYPE.img.gz
+    ;;
+    android)
+    FILE=$BOARD-android-12-v230114.raw.img.xz
+    DST=emmc
+    ;;
+    ubuntu)
+    FILE=$BOARD-ubuntu-22.04-gnome-linux-5.10-fenix-1.4-221229.img.xz
+    DST=emmc
     ;;
 esac
 

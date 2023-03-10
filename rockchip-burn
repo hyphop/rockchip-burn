@@ -23,8 +23,8 @@ EXAMPLES
 
     ONLINE
 
+    curl dl.khadas.com/online/rockchip-burn | sh -s -
     curl dl.khadas.com/online/rockchip-burn | sh -s - oowow --write --spi
-
     curl dl.khadas.com/online/rockchip-burn | sh -s - oowow --write --refresh --no-reset
 
     LOCAL

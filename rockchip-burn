@@ -12,7 +12,15 @@ USAGE rockchip-burn [ARGS]
 
 EXAMPLES
 
+    ONLINE
+
     curl dl.khadas.com/online/rockchip-burn | sh -s - oowow --write --spi
+
+    LOCAL
+
+    wget https://raw.githubusercontent.com/hyphop/rockchip-burn/main/rockchip-burn
+    chmod 0755 rockchip-burn
+    ./rockchip-burn oowow --write
 
 HELP
 exit

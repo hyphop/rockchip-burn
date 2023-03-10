@@ -72,11 +72,25 @@ mkdir -p $TOOL_HOME/dl || FAIL "mkdir dl"
 
 (
 cd $TOOL_BIN || FAIL "cd $TOOL_BIN"
-CHK "$TOOL" "$TOOL_DL"
+CHK "$TOOL" "$TOOL_DL" || FAIL "tool"
 
 [ -x "$TOOL" ] || chmod 0755 $TOOL
 
-CHK "$LOADER" "$LOADER_DL"
+CHK "$LOADER" "$LOADER_DL" || FAIL "loader"
+
+UDEV=/etc/udev/rules.d/80-rockchip-usb.rules
+
+grep -q OKAY $UDEV 2>/dev/null || {
+
+MSG "install usb device permission to $UDEV, need admin permissions!"
+
+cat <<EOF | sudo tee $UDEV
+#OKAY
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="2207", ATTR{idProduct}=="330c", MODE:="0666"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="2207", ATTR{idProduct}=="350b", MODE:="0666"
+EOF
+
+}
 
 )
 
@@ -139,10 +153,15 @@ esac
 
 MSG "write $IMG to $DST wait..."
 
-while [ "1" ]; do
+TRY=1
+
+while [ "1" ] ; do
     $TOOL LD | grep Mode=Maskrom && break
-    echo "[i] $(date) wait device ..." && sleep 1
+    printf "\r[i] wait device with upgrade mode - need press KEY_FN 3x times - $TRY" && sleep 1
+    TRY=$((TRY+1))
 done
+
+echo
 
 echo "[i] check is ready ..."
 $TOOL TD || $TOOL DB bin/$LOADER || exit 4
@@ -161,9 +180,9 @@ echo 5
 echo WL 0 $IMG
 $RESET_CMD
 echo Q
-) | $TOOL && echo "\n[i] OKAY done"
+) | $TOOL && echo "\n[i] OKAY done $IMG > $DST"
     ;;
     emmc)
-    CMD $TOOL WL 0 "$IMG" && echo "\n[i] OKAY done"
+    CMD $TOOL WL 0 "$IMG" && echo "\n[i] OKAY done $IMG > $DST"
     ;;
 esac

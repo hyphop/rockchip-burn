@@ -8,13 +8,24 @@
 ## WIP ...
 
 HELP(){ cat <<HELP
-USAGE rockchip-burn [ARGS]
+USAGE rockchip-burn [IMAGE_NAME] [ARGS...]
+
+ARGS
+
+    --write
+    --spi
+    --refresh
+    --no-reset
+    --clean
+    --help
 
 EXAMPLES
 
     ONLINE
 
     curl dl.khadas.com/online/rockchip-burn | sh -s - oowow --write --spi
+
+    curl dl.khadas.com/online/rockchip-burn | sh -s - oowow --write --refresh --no-reset
 
     LOCAL
 

@@ -5,7 +5,7 @@
 #= Rockchip burn online
 #< https://github.com/hyphop/rockchip-burn
 
-## WIP ...
+## VER 0.1
 
 HELP(){ cat <<HELP
 USAGE rockchip-burn [IMAGE_NAME] [ARGS...]
@@ -18,6 +18,7 @@ ARGS
     --no-reset
     --clean
     --help
+    --update
 
 IMAGE_NAME
 
@@ -37,9 +38,14 @@ EXAMPLES
     chmod 0755 rockchip-burn
     ./rockchip-burn oowow --write
 
+    ./rockchip-burn --update
+
 HELP
 exit
 }
+
+NAME=rockchip-burn
+SOURCE=https://raw.githubusercontent.com/hyphop/rockchip-burn/main/$NAME
 
 LOADER=${LOADER-rk3588_spl_loader_v1.07.111.bin}
 TOOL=${TOOL-upgrade_tool}
@@ -161,14 +167,34 @@ for a in "$@"; do
 	-h|--help)
 	MODE=help
 	;;
+	-u|--update)
+	MODE=update
+	;;
 	*)
 	SRC=$a
+	MODE=write
 	;;
     esac
 done
 
-[ "$MODE" ] || HELP
-[ "$MODE" = help ] && HELP
+case $MODE in
+    ""|help)
+    HELP
+    ;;
+    update)
+    MSG "self update mode $(pwd) < $NAME"
+    GET "$NAME" "$SOURCE" dl/ || FAIL "download update fail"
+    grep "## VER" dl/$NAME
+    cp dl/$NAME $NAME || FAIL "update fail..."
+    exit 0
+    ;;
+    write)
+    ;;
+    *)
+    FAIL "unknown mode "
+    ;;
+esac
+
 
 export PATH="$TOOL_BIN:$PATH"
 #echo $PATH

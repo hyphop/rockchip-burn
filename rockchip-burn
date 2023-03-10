@@ -50,8 +50,6 @@ LOADER_DL=${LOADER_DL-http://dl.khadas.com/products/edge2/firmware/boot/$LOADER}
 TOOL_HOME=~/upgrade_tool
 TOOL_BIN=$TOOL_HOME/bin
 
-get=$(which curl || which wget)
-
 FAIL(){
     echo "[e] $@">&2
     exit 1
@@ -64,10 +62,26 @@ CMD(){
     "$@"
 }
 
+UP(){
+gz=${GZ-$(which pigz || which gzip)}
+xz=${XZ-$(which pixz || which xz)}
+get=${GET-$(which curl || which wget)}
+}
+
+UP
+
+INSTALL(){
+    MSG "install $@, need admin permissions!"
+    CMD sudo apt install $@ || FAIL "please install it manually"
+    UP
+}
+
 [ "$get" ] || {
     MSG "need install wget or curl"
-    exit 2
+    INSTALL wget
 }
+
+[ "$get" ] || FAIL "curl or wget not found"
 
 GET(){
     (
@@ -193,21 +207,6 @@ IMG=${PKG%.*}
 
 CHK "$FILE" "$DL$FILE" dl/ || FAIL "oops $FILE"
 
-gz=
-xz=
-
-UP(){
-gz=$(which pigz || which gzip)
-xz=$(which pixz || which xz)
-}
-
-UP
-
-INSTALL(){
-    MSG "install $@, need admin permissions!"
-    CMD sudo apt install $@ || FAIL "please install it manualy"
-    UP
-}
 
 case $PKG in
     *.gz)

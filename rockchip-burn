@@ -5,7 +5,7 @@
 #= Rockchip burn online
 #< https://github.com/hyphop/rockchip-burn
 
-## VER 0.1111
+## VER 0.11111
 
 HELP(){ cat <<HELP
 USAGE rockchip-burn [IMAGE_NAME] [ARGS...]
@@ -115,29 +115,6 @@ echo "rockchip-burn $@">&2
 mkdir -p $TOOL_BIN || FAIL "mkdir $TOOL_BIN"
 mkdir -p $TOOL_HOME/dl || FAIL "mkdir dl"
 
-(
-cd $TOOL_BIN || FAIL "cd $TOOL_BIN"
-CHK "$TOOL" "$TOOL_DL" || FAIL "tool"
-
-[ -x "$TOOL" ] || chmod 0755 $TOOL
-
-CHK "$LOADER" "$LOADER_DL" || FAIL "loader"
-
-UDEV=/etc/udev/rules.d/80-rockchip-usb.rules
-
-grep -q OKAY $UDEV 2>/dev/null || {
-
-MSG "install usb device permission to $UDEV, need admin permissions!"
-
-cat <<EOF | sudo tee $UDEV
-#OKAY
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="2207", ATTR{idProduct}=="330c", MODE:="0666"
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="2207", ATTR{idProduct}=="350b", MODE:="0666"
-EOF
-
-}
-
-)
 
 CMD cd $TOOL_HOME || FAIL "cd fail"
 
@@ -196,6 +173,29 @@ case $MODE in
     ;;
 esac
 
+( # pre check
+cd $TOOL_BIN || FAIL "cd $TOOL_BIN"
+CHK "$TOOL" "$TOOL_DL" || FAIL "tool"
+
+[ -x "$TOOL" ] || chmod 0755 $TOOL
+
+CHK "$LOADER" "$LOADER_DL" || FAIL "loader"
+
+UDEV=/etc/udev/rules.d/80-rockchip-usb.rules
+
+grep -q OKAY $UDEV 2>/dev/null || {
+
+MSG "install usb device permission to $UDEV, need admin permissions!"
+
+cat <<EOF | sudo tee $UDEV
+#OKAY
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="2207", ATTR{idProduct}=="330c", MODE:="0666"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="2207", ATTR{idProduct}=="350b", MODE:="0666"
+EOF
+
+}
+
+)
 
 export PATH="$TOOL_BIN:$PATH"
 #echo $PATH

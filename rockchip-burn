@@ -44,6 +44,8 @@ HELP
 exit
 }
 
+PROG=$(realpath "$0")
+
 NAME=rockchip-burn
 SOURCE=https://raw.githubusercontent.com/hyphop/rockchip-burn/main/$NAME
 
@@ -160,11 +162,14 @@ case $MODE in
     ;;
     update)
     RND=${RANDOM-$$}
-    MSG "self update mode $(pwd) < $NAME"
-    GET "$NAME" "$SOURCE?$RND" dl/ || FAIL "download update fail"
-    grep -m1 "^## VER" dl/$NAME
-    cp dl/$NAME $NAME || FAIL "update fail..."
-    MSG "OKAY self updated"
+
+    VER_OLD=$(grep -m1 "^## VER" $PROG)
+
+    MSG "self update mode $PROG from $VER_OLD to ..."
+    GET "$NAME" "$SOURCE?$RND" /tmp/ || FAIL "download update fail"
+    VER_NEW=$(grep -m1 "^## VER" /tmp/$NAME)
+    cp /tmp/$NAME $PROG || FAIL "update fail..."
+    MSG "OKAY self updated $VER_NEW"
     exit 0
     ;;
     write)

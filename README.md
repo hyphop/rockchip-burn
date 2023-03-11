@@ -1,7 +1,6 @@
 # rockchip-burn
 
 ```
-
 USAGE rockchip-burn [IMAGE_NAME] [ARGS...]
 
 ARGS

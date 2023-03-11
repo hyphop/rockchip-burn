@@ -5,7 +5,7 @@
 #= Rockchip burn online
 #< https://github.com/hyphop/rockchip-burn
 
-## VER 0.111111
+## VER 0.1111111
 
 HELP(){ cat <<HELP
 USAGE rockchip-burn [IMAGE_NAME] [ARGS...]
@@ -169,12 +169,25 @@ case $MODE in
     ;;
     write)
     ;;
+    clean)
+    ;;
     *)
     FAIL "unknown mode "
     ;;
 esac
 
+ARCH=$(uname -m 2>/dev/null)
+
+case $ARCH in
+    x86_64)
+    ;;
+    *)
+    FAIL "not supported arch $ARCH"
+    ;;
+esac
+
 ( # pre check
+
 cd $TOOL_BIN || FAIL "cd $TOOL_BIN"
 CHK "$TOOL" "$TOOL_DL" || FAIL "tool"
 
@@ -205,6 +218,12 @@ which $TOOL || FAIL "cant find $TOOL"
 
 BOARD=${BOARD-edge2}
 
+case $MODE in
+    clean)
+    FAIL "not ready"
+    ;;
+esac
+
 DL=http://dl.khadas.com/.images/$BOARD/
 
 case $SRC in
@@ -234,7 +253,6 @@ IMG=${PKG%.*}
 }
 
 CHK "$FILE" "$DL$FILE" dl/ || FAIL "oops $FILE"
-
 
 case $PKG in
     *.gz)

@@ -7,7 +7,7 @@
 
 ## VER 0.13
 
-HELP(){ cat <<HELP
+HELP(){ cat <<HELP_
 USAGE rockchip-burn [IMAGE_NAME] [ARGS...]
 
 ARGS
@@ -40,7 +40,7 @@ EXAMPLES
 
     ./rockchip-burn --update
 
-HELP
+HELP_
 exit
 }
 
@@ -138,6 +138,14 @@ for a in "$@"; do
 	;;
 	--write)
 	MODE=write
+	;;
+	--readme)
+	echo "# $NAME"
+	echo
+	echo '```'
+	grep -A100 -m1 "^HELP()" $PROG | grep -B100 -m1 "^HELP_" | head -n-1 | tail -n+2
+	echo '```'
+	exit
 	;;
 	-h|--help)
 	MODE=help

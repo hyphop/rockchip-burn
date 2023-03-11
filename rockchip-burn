@@ -114,11 +114,6 @@ CHK(){
 
 echo "rockchip-burn $@">&2
 
-mkdir -p $TOOL_BIN || FAIL "mkdir $TOOL_BIN"
-mkdir -p $TOOL_HOME/dl || FAIL "mkdir dl"
-
-
-CMD cd $TOOL_HOME || FAIL "cd fail"
 
 DST=${DST-emmc}
 TYPE=sd
@@ -180,6 +175,11 @@ case $MODE in
     FAIL "unknown mode "
     ;;
 esac
+
+mkdir -p $TOOL_BIN || FAIL "mkdir $TOOL_BIN"
+mkdir -p $TOOL_HOME/dl || FAIL "mkdir dl"
+
+CMD cd $TOOL_HOME || FAIL "cd fail"
 
 ARCH=$(uname -m 2>/dev/null)
 

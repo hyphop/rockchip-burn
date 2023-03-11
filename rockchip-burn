@@ -161,9 +161,9 @@ case $MODE in
     VER_OLD=$(grep -m1 "^## VER" $PROG)
 
     MSG "self update mode $PROG from $VER_OLD to ..."
-    GET "$NAME" "$SOURCE?$RND" /tmp/ || FAIL "download update fail"
-    VER_NEW=$(grep -m1 "^## VER" /tmp/$NAME)
-    cp /tmp/$NAME $PROG || FAIL "update fail..."
+    GET "$NAME.new" "$SOURCE?$RND" /tmp/ || FAIL "download update fail"
+    VER_NEW=$(grep -m1 "^## VER" /tmp/$NAME.new)
+    cp /tmp/$NAME.new $PROG || FAIL "update fail..."
     MSG "OKAY self updated $VER_NEW"
     exit 0
     ;;

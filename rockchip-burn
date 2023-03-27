@@ -7,11 +7,13 @@
 
 ## VER 0.142
 
+for VER in $(grep -m1 VER "$0"); do true; done
 HELP(){ cat <<HELP_
 USAGE rockchip-burn [IMAGE_NAME] [ARGS...]
 
-ARGS
+VERSION $VER
 
+ARGS
     --write
     --spi
     --refresh
@@ -147,6 +149,9 @@ DL_OOWOW=http://dl.khadas.com/products/oowow/system/
 
 for a in "$@"; do
     case $a in
+	-v|--version)
+	echo $VER && exit
+	;;
 	--clean)
 	MODE=clean
 	;;

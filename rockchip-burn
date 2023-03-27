@@ -5,7 +5,7 @@
 #= Rockchip burn online
 #< https://github.com/hyphop/rockchip-burn
 
-## VER 0.141
+## VER 0.142
 
 HELP(){ cat <<HELP_
 USAGE rockchip-burn [IMAGE_NAME] [ARGS...]
@@ -186,7 +186,8 @@ for a in "$@"; do
 	;;
 	$board-*.img.gz)
 	MODE=write
-	[ -s "$a" ] && SRC="$a" && echo "[i] use a local file $SRC">&2 && LOCAL=y && continue
+	[ -s "$a" ] && SRC=$(realpath "$a") && \
+	    echo "[i] use a local file $SRC">&2 && LOCAL=y && continue
 	DL="${DL_OOWOW}versions/$board/"
 	FILE="$a"
 	SRC="$DL$FILE"
@@ -200,7 +201,8 @@ for a in "$@"; do
 	;;
 	*)
 	SRC="$a"
-	[ -s "$a" ] && echo "[i] use a local file $SRC">&2 && LOCAL=y
+	[ -s "$a" ] && SRC=$(realpath "$a") && \
+	    echo "[i] use a local file $SRC">&2 && LOCAL=y
 	MODE=write
 	;;
     esac

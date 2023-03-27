@@ -3,7 +3,7 @@
 ```
 USAGE rockchip-burn [IMAGE_NAME] [ARGS...]
 
-VERSION 0.143
+## VER 0.143
 
 ARGS
     --write

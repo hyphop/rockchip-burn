@@ -12,6 +12,7 @@ ARGS
     --clean
     --help
     --update
+    --list
 
 IMAGE_NAME
 
@@ -19,18 +20,28 @@ IMAGE_NAME
 
 EXAMPLES
 
-    ONLINE
+ONLINE USAGE
 
     curl dl.khadas.com/online/rockchip-burn | sh -s -
     curl dl.khadas.com/online/rockchip-burn | sh -s - oowow --write --spi
     curl dl.khadas.com/online/rockchip-burn | sh -s - oowow --write --refresh --no-reset
 
-    LOCAL
+    # get oowow images list
+    curl dl.khadas.com/online/rockchip-burn | sh -s - oowow --list
+    # write custom version ( auto download image )
+    curl dl.khadas.com/online/rockchip-burn | sh -s - edge2-oowow-230316.307-sd.img.gz
+
+LOCAL USAGE
 
     wget https://raw.githubusercontent.com/hyphop/rockchip-burn/main/rockchip-burn
     chmod 0755 rockchip-burn
     ./rockchip-burn oowow --write
 
     ./rockchip-burn --update
+
+    # get oowow images list
+    ./rockchip-burn oowow --list
+    # write local image
+    ./rockchip-burn ./edge2-oowow-230316.307-sd.img.gz
 
 ```

@@ -5,7 +5,7 @@
 #= Rockchip burn online
 #< https://github.com/hyphop/rockchip-burn
 
-## VER 0.142
+## VER 0.143
 
 for VER in $(grep -m1 VER "$0"); do true; done
 HELP(){ cat <<HELP_
@@ -179,7 +179,7 @@ for a in "$@"; do
 	echo "# $NAME"
 	echo
 	echo '```'
-	grep -A100 -m1 "^HELP()" $PROG | grep -B100 -m1 "^HELP_" | head -n-1 | tail -n+2
+	$0 --help
 	echo '```'
 	exit
 	;;

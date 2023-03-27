@@ -19,6 +19,7 @@ ARGS
     --clean
     --help
     --update
+    --list
 
 IMAGE_NAME
 
@@ -26,19 +27,29 @@ IMAGE_NAME
 
 EXAMPLES
 
-    ONLINE
+ONLINE USAGE
 
     curl dl.khadas.com/online/rockchip-burn | sh -s -
     curl dl.khadas.com/online/rockchip-burn | sh -s - oowow --write --spi
     curl dl.khadas.com/online/rockchip-burn | sh -s - oowow --write --refresh --no-reset
 
-    LOCAL
+    # get oowow images list
+    curl dl.khadas.com/online/rockchip-burn | sh -s - oowow --list
+    # write custom version ( auto download image )
+    curl dl.khadas.com/online/rockchip-burn | sh -s - edge2-oowow-230316.307-sd.img.gz
+
+LOCAL USAGE
 
     wget https://raw.githubusercontent.com/hyphop/rockchip-burn/main/rockchip-burn
     chmod 0755 rockchip-burn
     ./rockchip-burn oowow --write
 
     ./rockchip-burn --update
+
+    # get oowow images list
+    ./rockchip-burn oowow --list
+    # write local image
+    ./rockchip-burn ./edge2-oowow-230316.307-sd.img.gz
 
 HELP_
 exit
@@ -69,6 +80,10 @@ MSG(){
 CMD(){
     echo "### $@">&2
     "$@"
+}
+
+lowcase(){
+    echo "$@" | tr '[:upper:]' '[:lower:]'
 }
 
 UP(){
@@ -121,6 +136,11 @@ TYPE=sd
 
 RESET=1
 
+BOARD=${BOARD-edge2}
+board=$(lowcase $BOARD)
+
+DL_OOWOW=http://dl.khadas.com/products/oowow/system/
+
 for a in "$@"; do
     case $a in
 	--clean)
@@ -129,15 +149,22 @@ for a in "$@"; do
 	--no-reset)
 	RESET=
 	;;
-	--r|--refresh)
+	-r|--refresh)
 	REFRESH=1
+	;;
+	-g|--get)
+	MODE=write
+	GET_ONLY=1
 	;;
 	--spi)
 	DST=spi
 	TYPE=spi
 	;;
-	--write)
+	-w|--write)
 	MODE=write
+	;;
+	-l|--list)
+	MODE=list
 	;;
 	--readme)
 	echo "# $NAME"
@@ -153,8 +180,17 @@ for a in "$@"; do
 	-u|--update)
 	MODE=update
 	;;
+	$board-*.img.gz)
+	MODE=write
+	[ -s "$a" ] && SRC="$a" && echo "[i] use a local file $SRC">&2 && LOCAL=y && continue
+	DL="${DL_OOWOW}versions/$board/"
+	FILE="$a"
+	SRC="$DL$FILE"
+	echo "[i] remote file $SRC">&2
+	;;
 	*)
-	SRC=$a
+	SRC="$a"
+	[ -s "$a" ] && echo "[i] use a local file $SRC">&2 && LOCAL=y
 	MODE=write
 	;;
     esac
@@ -180,9 +216,7 @@ case $MODE in
     MSG "OKAY self updated $VER_NEW"
     exit 0
     ;;
-    write)
-    ;;
-    clean)
+    write|clean|list)
     ;;
     *)
     FAIL "unknown mode "
@@ -234,7 +268,6 @@ export PATH="$TOOL_BIN:$PATH"
 
 which $TOOL || FAIL "cant find $TOOL"
 
-BOARD=${BOARD-edge2}
 
 case $MODE in
     clean)
@@ -242,11 +275,11 @@ case $MODE in
     ;;
 esac
 
-DL=http://dl.khadas.com/.images/$BOARD/
+DL=${DL:-http://dl.khadas.com/.images/$BOARD/}
 
 case $SRC in
     oowow)
-    DL=http://dl.khadas.com/products/oowow/system/
+    DL=$DL_OOWOW
     FILE=$BOARD-oowow-latest-$TYPE.img.gz
     ;;
     android)
@@ -256,6 +289,14 @@ case $SRC in
     ubuntu)
     FILE=$BOARD-ubuntu-22.04-gnome-linux-5.10-fenix-1.4-221229.img.xz
     DST=emmc
+    ;;
+esac
+
+case $MODE-$SRC in
+    list-oowow)
+    echo "$MODE-$SRC:">&2
+    GET - ${DL}versions/$board 2>/dev/null | grep -o $board-$SRC-..........-$TYPE.img.gz | uniq | sort
+    exit 0
     ;;
 esac
 
@@ -270,7 +311,17 @@ IMG=${PKG%.*}
     }
 }
 
-CHK "$FILE" "$DL$FILE" dl/ || FAIL "oops $FILE"
+case "$LOCAL" in
+    "")
+    CHK "$FILE" "$DL$FILE" dl/ || FAIL "oops $FILE"
+    ;;
+    *)
+    PKG="$SRC"
+    IMG=$(basename "$SRC")
+    IMG=${IMG%.??}
+    echo "LOCAL: $PKG -> $IMG"
+    ;;
+esac
 
 case $PKG in
     *.gz)
@@ -284,6 +335,13 @@ case $PKG in
     CMD $xz -dc $PKG > $IMG || FAIL "decompress fail"
     ;;
 esac
+
+[ "$GET_ONLY" ] && {
+MSG "get image only"
+PWD=$(pwd)
+echo "$PWD/$PKG"
+exit 0
+}
 
 MSG "write $IMG to $DST wait..."
 

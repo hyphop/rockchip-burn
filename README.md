@@ -3,8 +3,9 @@
 ```
 USAGE rockchip-burn [IMAGE_NAME] [ARGS...]
 
-ARGS
+VERSION $VER
 
+ARGS
     --write
     --spi
     --refresh

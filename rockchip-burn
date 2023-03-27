@@ -5,7 +5,7 @@
 #= Rockchip burn online
 #< https://github.com/hyphop/rockchip-burn
 
-## VER 0.13
+## VER 0.14
 
 HELP(){ cat <<HELP_
 USAGE rockchip-burn [IMAGE_NAME] [ARGS...]

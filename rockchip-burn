@@ -5,13 +5,11 @@
 #= Rockchip burn online
 #< https://github.com/hyphop/rockchip-burn
 
-## VER 0.143
 
-for VER in $(grep -m1 VER "$0"); do true; done
 HELP(){ cat <<HELP_
 USAGE rockchip-burn [IMAGE_NAME] [ARGS...]
 
-VERSION $VER
+## VER 0.143
 
 ARGS
     --write
@@ -60,6 +58,8 @@ LOCAL USAGE
 HELP_
 exit
 }
+
+for VER in $(grep -m1 VER "$0"); do true; done
 
 PROG=$(realpath -s "$0")
 WORK=$(dirname "$PROG")
@@ -179,7 +179,7 @@ for a in "$@"; do
 	echo "# $NAME"
 	echo
 	echo '```'
-	$0 --help
+	sh $0 --help
 	echo '```'
 	exit
 	;;

@@ -37,11 +37,15 @@ LOCAL USAGE
     chmod 0755 rockchip-burn
     ./rockchip-burn oowow --write
 
+    # script self update to latest
     ./rockchip-burn --update
 
     # get oowow images list
     ./rockchip-burn oowow --list
     # write local image
     ./rockchip-burn ./edge2-oowow-230316.307-sd.img.gz
+
+    # write remote image from URL
+    ./rockchip-burn http://dl.khadas.com/products/oowow/system/versions/edge2/edge2-oowow-230308.000-sd.img.gz
 
 ```

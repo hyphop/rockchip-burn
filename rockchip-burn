@@ -5,7 +5,7 @@
 #= Rockchip burn online
 #< https://github.com/hyphop/rockchip-burn
 
-## VER 0.14
+## VER 0.141
 
 HELP(){ cat <<HELP_
 USAGE rockchip-burn [IMAGE_NAME] [ARGS...]
@@ -44,12 +44,16 @@ LOCAL USAGE
     chmod 0755 rockchip-burn
     ./rockchip-burn oowow --write
 
+    # script self update to latest
     ./rockchip-burn --update
 
     # get oowow images list
     ./rockchip-burn oowow --list
     # write local image
     ./rockchip-burn ./edge2-oowow-230316.307-sd.img.gz
+
+    # write remote image from URL
+    ./rockchip-burn http://dl.khadas.com/products/oowow/system/versions/edge2/edge2-oowow-230308.000-sd.img.gz
 
 HELP_
 exit
@@ -187,6 +191,12 @@ for a in "$@"; do
 	FILE="$a"
 	SRC="$DL$FILE"
 	echo "[i] remote file $SRC">&2
+	;;
+	http://*|https://*)
+	SRC="$a"
+	DL=$(dirname "$a")/
+	FILE=$(basename "$a")
+	MODE=write
 	;;
 	*)
 	SRC="$a"

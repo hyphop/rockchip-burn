@@ -389,7 +389,7 @@ echo Q
 ) | $TOOL || FAIL "oops"
     ;;
     emmc)
-    CMD $TOOL WL 0 "$IMG" || FIAL "oops"
+    CMD $TOOL WL 0 "$IMG" || FAIL "oops"
     ;;
 esac
 

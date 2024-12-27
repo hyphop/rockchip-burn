@@ -59,7 +59,7 @@ HELP_
 exit
 }
 
-for VER in $(grep -m1 VER "$0"); do true; done
+for VER in $(grep -m1 VER "$0" 2>/dev/null); do true; done
 
 PROG=$(realpath -s "$0")
 WORK=$(dirname "$PROG")
@@ -192,7 +192,7 @@ for a in "$@"; do
 	$board-*.img.gz)
 	MODE=write
 	[ -s "$a" ] && SRC=$(realpath "$a") && \
-	    echo "[i] use a local file $SRC">&2 && LOCAL=y && continue
+	    echo "[i] use a local file $SRC">&2 && LOCAL="$SRC" && continue
 	DL="${DL_OOWOW}versions/$board/"
 	FILE="$a"
 	SRC="$DL$FILE"
@@ -207,7 +207,7 @@ for a in "$@"; do
 	*)
 	SRC="$a"
 	[ -s "$a" ] && SRC=$(realpath "$a") && \
-	    echo "[i] use a local file $SRC">&2 && LOCAL=y
+	    echo "[i] use a local file $SRC">&2 && LOCAL="$SRC"
 	MODE=write
 	;;
     esac
@@ -333,8 +333,8 @@ case "$LOCAL" in
     CHK "$FILE" "$DL$FILE" dl/ || FAIL "oops $FILE"
     ;;
     *)
-    PKG="$SRC"
-    IMG=$(basename "$SRC")
+    PKG="$LOCAL"
+    IMG=$(basename "$LOCAL")
     IMG=${IMG%.??}
     echo "LOCAL: $PKG -> $IMG"
     ;;

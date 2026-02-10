@@ -9,9 +9,14 @@
 HELP(){ cat <<HELP_
 USAGE
 
-[ENV] rockchip-burn [edge2l] [IMAGE_NAME] [ARGS...]
+[ENV] rockchip-burn [board] [IMAGE_NAME] [ARGS...]
 
-## VER 0.144
+## VER 0.155
+
+board
+
+    edge2 - default
+    edge-2l
 
 ARGS
     --write
@@ -31,7 +36,8 @@ IMAGE_NAME TAGS
 
 ENV VAR=value
 
-    MIRROR [dl.khadas.com|dl.khadas.cn]
+    MIRROR = dl.khadas.com | dl.khadas.cn
+    BOARD  = edge2 | edge-2l
     ...
 
 EXAMPLES
@@ -171,7 +177,8 @@ debug(){
 echo "$@">&2
 }
 
-debug "rockchip-burn $@">&2
+echo "rockchip-burn $@">&2
+
 for VER in $(grep -m1 VER "$0"); do true; done
 
 : ${DST:=emmc}
@@ -179,7 +186,8 @@ TYPE=sd
 RESET=1
 
 case $1 in
-	edge2l) BOARD=edge-2l ; shift ;;
+	edge2l|edge-2l|Edge-2l|Edge-2L) BOARD=edge-2l ; shift ;;
+	edge2|Edge2) BOARD=edge2 ; shift ;;
 esac
 
 USB_ID=$(usb_find)

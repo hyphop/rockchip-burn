@@ -1,9 +1,15 @@
 # rockchip-burn
 
 ```
-USAGE rockchip-burn [IMAGE_NAME] [ARGS...]
+USAGE
 
-## VER 0.144
+[ENV] rockchip-burn [board] [IMAGE_NAME] [ARGS...]
+
+## VER 0.155
+
+board
+
+    edge2 [default] | edge-2l
 
 ARGS
     --write
@@ -14,10 +20,17 @@ ARGS
     --help
     --update
     --list
+    --test
 
-IMAGE_NAME
+IMAGE_NAME TAGS
 
     oowow | android | ubuntu
+
+ENV VAR=value
+
+    MIRROR = dl.khadas.com | dl.khadas.cn
+    BOARD  = edge2 | edge-2l
+    ...
 
 EXAMPLES
 

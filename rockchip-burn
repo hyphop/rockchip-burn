@@ -59,7 +59,7 @@ HELP_
 exit
 }
 
-for VER in $(grep -m1 VER "$0" 2>/dev/null); do true; done
+for VER in $(grep -m1 VER "$0"); do true; done
 
 PROG=$(realpath -s "$0")
 WORK=$(dirname "$PROG")
@@ -192,7 +192,7 @@ for a in "$@"; do
 	$board-*.img.gz)
 	MODE=write
 	[ -s "$a" ] && SRC=$(realpath "$a") && \
-	    echo "[i] use a local file $SRC">&2 && LOCAL="$SRC" && continue
+	    echo "[i] use a local file $SRC">&2 && LOCAL=y && continue
 	DL="${DL_OOWOW}versions/$board/"
 	FILE="$a"
 	SRC="$DL$FILE"
@@ -207,7 +207,7 @@ for a in "$@"; do
 	*)
 	SRC="$a"
 	[ -s "$a" ] && SRC=$(realpath "$a") && \
-	    echo "[i] use a local file $SRC">&2 && LOCAL="$SRC"
+	    echo "[i] use a local file $SRC">&2 && LOCAL=y
 	MODE=write
 	;;
     esac
@@ -333,8 +333,8 @@ case "$LOCAL" in
     CHK "$FILE" "$DL$FILE" dl/ || FAIL "oops $FILE"
     ;;
     *)
-    PKG="$LOCAL"
-    IMG=$(basename "$LOCAL")
+    PKG="$SRC"
+    IMG=$(basename "$SRC")
     IMG=${IMG%.??}
     echo "LOCAL: $PKG -> $IMG"
     ;;
@@ -345,22 +345,27 @@ case $PKG in
     [ "$gz" ] || INSTALL gzip pigz
     MSG "decompress $PKG wait..."
     CMD $gz -dc $PKG > $IMG || FAIL "decompress fail"
+    LOCAL=
     ;;
     *.xz)
     [ "$xz" ] || INSTALL pixz xz
     MSG "decompress $PKG wait..."
     CMD $xz -dc $PKG > $IMG || FAIL "decompress fail"
+    LOCAL=
     ;;
 esac
 
+PWD=$(pwd)
+
 [ "$GET_ONLY" ] && {
 MSG "get image only"
-PWD=$(pwd)
 echo "$PWD/$PKG"
 exit 0
 }
 
 MSG "write $IMG to $DST wait..."
+
+[ "$LOCAL" ] && IMG=$PKG
 
 TRY=1
 
@@ -377,6 +382,7 @@ $TOOL TD || $TOOL DB bin/$LOADER || exit 4
 
 case $DST in
     spi)
+    echo $IMG
 (
 sleep 1
 echo 1
@@ -389,7 +395,7 @@ echo Q
 ) | $TOOL || FAIL "oops"
     ;;
     emmc)
-    CMD $TOOL WL 0 "$IMG" || FIAL "oops"
+    CMD $TOOL WL 0 "$IMG" || FAIL "oops"
     ;;
 esac
 

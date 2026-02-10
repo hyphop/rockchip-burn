@@ -15,8 +15,7 @@ USAGE
 
 board
 
-    edge2 - default
-    edge-2l
+    edge2 [default] | edge-2l
 
 ARGS
     --write
@@ -28,7 +27,6 @@ ARGS
     --update
     --list
     --test
-    --edge2l
 
 IMAGE_NAME TAGS
 
@@ -74,6 +72,11 @@ HELP_
 exit
 }
 
+debug(){
+[ "$DEBUG" ] || return
+echo "$@">&2
+}
+
 usb_find(){
 	local VID=${1-2207}
 	local d
@@ -100,7 +103,7 @@ TOOL_HOME=~/upgrade_tool
 TOOL_BIN="$TOOL_HOME/bin"
 
 : ${MIRROR:=dl.khadas.com}
-echo "MIRROR: $MIRROR"
+debug "MIRROR: $MIRROR"
 : ${SOURCE:=https://raw.githubusercontent.com/hyphop/rockchip-burn/main/$NAME}
 : ${DL_OOWOW:=$MIRROR/products/oowow/system/}
 
@@ -172,10 +175,7 @@ usb_find
 #echo $USB_ID
 }
 
-debug(){
-[ "$DEBUG" ] || return
-echo "$@">&2
-}
+
 
 echo "rockchip-burn $@">&2
 

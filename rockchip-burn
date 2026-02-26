@@ -435,7 +435,7 @@ case $1-$2 in
     ;;
     list-oowow)
     echo "!$1-$2:">&2
-    DD= "${DL}versions/$board"
+    DD="${DL}versions/$board/"
     LL="dl/$board-oowow.list"
     GET - "$DD" 2>/dev/null | grep -o $board-$SRC-..........-$TYPE.img.gz | sort -u | tee "$DD"
     echo "$DD" > "$LL.url"

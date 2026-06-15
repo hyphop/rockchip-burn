@@ -5,203 +5,1088 @@
 #= Rockchip burn online
 #< https://github.com/hyphop/rockchip-burn
 
+VER=0.161
 
 HELP(){ cat <<HELP_
 USAGE
 
-[ENV] rockchip-burn [board] [IMAGE_NAME] [ARGS...]
+[ENV] rockchip-burn [board] [IMAGE_NAME|TAG|INDEX] [ACTION] [ARGS...]
 
-## VER 0.155
+## VER $VER
 
-board
+BOARD
 
-    edge2 [default] | edge-2l
+    edge2 | edge-2l
+
+    If board is not specified, it is auto-detected from USB.
+    If USB detection fails, default is edge2.
+
+TAGS
+
+    oowow      exclusive OOWOW/SPI mode
+    android    normal images catalog filter
+    ubuntu     normal images catalog filter
+
+INDEX
+
+    Index from --list output. Accepted anywhere in arguments.
+
+    ./rockchip-burn edge-2l --list
+    ./rockchip-burn edge-2l 1 --dl
+    ./rockchip-burn edge-2l --write 2
+
+    ./rockchip-burn edge-2l oowow --list
+    ./rockchip-burn edge-2l oowow --dl 1
+    ./rockchip-burn edge-2l oowow --write 2
+
+IMAGE_NAME
+
+    edge-2l-oowow-260529.000-spi.img.gz
+    edge-2l-ubuntu-24.04-server-linux-6.1-fenix-1.7.6-260519.img.xz
+    edge-2l-android-14-v260428.raw.img.xz
+
+    Local file/path is used directly when it exists.
+    http/https URL is used directly.
+    Bare filename is resolved through catalog.
+
+ACTIONS
+
+    --devices   show detected USB devices only
+    --list      list images only, enumerated
+    --dl        download image only
+    --write     download/decompress/write image
+    --clean     clean selected storage
+    --test      show devices and upgrade_tool version if installed
+    --update    self update
+    --help      show help
 
 ARGS
-    --write
-    --spi
-    --refresh
-    --no-reset
-    --clean
-    --help
-    --update
-    --list
-    --test
 
-IMAGE_NAME TAGS
+    --spi       force SPI destination
+    --sd        force eMMC/SD destination
+    --refresh   re-download image / refresh catalog cache
+    --no-reset  do not reset device after write
 
-    oowow | android | ubuntu
+CLEAR USAGE
+
+    ./rockchip-burn --devices
+
+    ./rockchip-burn
+    ./rockchip-burn edge-2l
+
+    # normal images catalog
+    ./rockchip-burn --list
+    ./rockchip-burn edge-2l --list
+    ./rockchip-burn edge-2l ubuntu --list
+    ./rockchip-burn edge-2l android --list
+    ./rockchip-burn edge-2l --dl 1
+    ./rockchip-burn edge-2l --write 2
+
+    # oowow exclusive mode
+    ./rockchip-burn edge-2l oowow
+    ./rockchip-burn edge-2l oowow --list
+    ./rockchip-burn edge-2l oowow --dl
+    ./rockchip-burn edge-2l oowow --write
+    ./rockchip-burn edge-2l oowow --dl 1
+    ./rockchip-burn edge-2l oowow --write 2
+
+    # exact image
+    ./rockchip-burn edge-2l-oowow-260529.000-spi.img.gz --dl
+    ./rockchip-burn edge-2l-oowow-260529.000-spi.img.gz --write
+    ./rockchip-burn edge-2l-ubuntu-24.04-server-linux-6.1-fenix-1.7.6-260519.img.xz --write
+
+ONLINE USAGE
+
+    curl dl.khadas.com/online/rockchip-burn | sh -s -
+    curl dl.khadas.com/online/rockchip-burn | sh -s - --devices
+    curl dl.khadas.com/online/rockchip-burn | sh -s - edge-2l --list
+    curl dl.khadas.com/online/rockchip-burn | sh -s - edge-2l oowow --list
+    curl dl.khadas.com/online/rockchip-burn | sh -s - edge-2l oowow --write
 
 ENV VAR=value
 
     MIRROR = dl.khadas.com | dl.khadas.cn
     BOARD  = edge2 | edge-2l
-    ...
-
-EXAMPLES
-
-ONLINE USAGE
-
-    curl dl.khadas.com/online/rockchip-burn | sh -s -
-    curl dl.khadas.com/online/rockchip-burn | sh -s - oowow --write --spi
-    curl dl.khadas.com/online/rockchip-burn | sh -s - oowow --write --refresh --no-reset
-
-    # get oowow images list
-    curl dl.khadas.com/online/rockchip-burn | sh -s - oowow --list
-    # write custom version ( auto download image )
-    curl dl.khadas.com/online/rockchip-burn | sh -s - edge2-oowow-230316.307-sd.img.gz
-
-LOCAL USAGE
-
-    wget https://raw.githubusercontent.com/hyphop/rockchip-burn/main/rockchip-burn
-    chmod 0755 rockchip-burn
-    ./rockchip-burn oowow --write
-
-    # script self update to latest
-    ./rockchip-burn --update
-
-    # get oowow images list
-    ./rockchip-burn oowow --list
-    # write local image
-    ./rockchip-burn ./edge2-oowow-230316.307-sd.img.gz
-
-    # write remote image from URL
-    ./rockchip-burn http://dl.khadas.com/products/oowow/system/versions/edge2/edge2-oowow-230308.000-sd.img.gz
+    DEBUG  = 1
 
 HELP_
 exit
 }
 
 debug(){
-[ "$DEBUG" ] || return
-echo "$@">&2
+	[ "$DEBUG" ] || return
+	echo "$@">&2
 }
 
-usb_find(){
-	local VID=${1-2207}
+FAIL(){
+	echo "[e] $@">&2
+	exit 1
+}
+
+MSG(){
+	echo "[i] $@"
+}
+
+CMD(){
+	echo "### $@">&2
+	"$@"
+}
+
+CMDF(){
+	echo "### $@">&2
+	"$@" || exit 1
+}
+
+lowcase(){
+	echo "$@" | tr '[:upper:]' '[:lower:]'
+}
+
+usb_val(){
+	[ -f "$1" ] || return
+	IFS= read -r v < "$1"
+	echo "$v"
+}
+
+usb_board_by_product(){
+	case $1 in
+		edge-2l-*|edge2l-*)
+		echo edge-2l
+		;;
+		edge2-*)
+		echo edge2
+		;;
+	esac
+}
+
+usb_board_by_id(){
+	case $1 in
+		2207:350e)
+		echo edge-2l
+		;;
+		2207:350b)
+		echo edge2
+		;;
+	esac
+}
+
+usb_board_find(){
 	local d
+	local v
 	local p
+	local product
+	local b
+
+	# 1st pass: Khadas rescue/RNDIS with product string
 	for d in /sys/bus/usb/devices/*; do
 		[ -f "$d/idVendor" ] || continue
-		read v < "$d/idVendor"
-		[ "$v" = "$VID" ] || continue
-		read p < "$d/idProduct"
-		#echo "+ $d $p">&2
-		case $p in
-			330c|350b|350e)
-			echo "$v:$p"
+
+		v=$(usb_val "$d/idVendor")
+		p=$(usb_val "$d/idProduct")
+		product=$(usb_val "$d/product")
+
+		case "$v:$p" in
+			0b05:7774)
+			b=$(usb_board_by_product "$product")
+			[ "$b" ] && echo "$b" && return
 			;;
 		esac
 	done
+
+	# 2nd pass: Rockchip burn/loader IDs
+	for d in /sys/bus/usb/devices/*; do
+		[ -f "$d/idVendor" ] || continue
+
+		v=$(usb_val "$d/idVendor")
+		p=$(usb_val "$d/idProduct")
+
+		b=$(usb_board_by_id "$v:$p")
+		[ "$b" ] && echo "$b" && return
+	done
+}
+
+usb_list(){
+	local d
+	local v
+	local p
+	local product
+	local manufacturer
+	local serial
+	local board
+	local mode
+
+	echo "Devices:"
+
+	for d in /sys/bus/usb/devices/*; do
+		[ -f "$d/idVendor" ] || continue
+
+		v=$(usb_val "$d/idVendor")
+		p=$(usb_val "$d/idProduct")
+		product=$(usb_val "$d/product")
+		manufacturer=$(usb_val "$d/manufacturer")
+		serial=$(usb_val "$d/serial")
+
+		board=
+		mode=
+
+		case "$v:$p" in
+			0b05:7774)
+			board=$(usb_board_by_product "$product")
+			mode=rescue
+			;;
+			2207:330c)
+			mode=rockchip-maskrom
+			;;
+			2207:350b)
+			board=edge2
+			mode=rockchip-burn
+			;;
+			2207:350e)
+			board=edge-2l
+			mode=rockchip-burn
+			;;
+			*)
+			continue
+			;;
+		esac
+
+		printf "  %s:%s" "$v" "$p"
+		[ "$mode" ] && printf " mode=%s" "$mode"
+		[ "$board" ] && printf " board=%s" "$board"
+		[ "$product" ] && printf " product='%s'" "$product"
+		[ "$manufacturer" ] && printf " manufacturer='%s'" "$manufacturer"
+		[ "$serial" ] && printf " serial='%s'" "$serial"
+		echo
+	done
+
+	board=$(usb_board_find)
+	[ "$board" ] && echo "AUTO_BOARD $board"
+}
+
+UP(){
+	gz=${GZ-$(command -v pigz || command -v gzip)}
+	xz=${XZ-$(command -v pixz || command -v xz)}
+	get=${GET-$(command -v curl || command -v wget)}
+}
+
+INSTALL(){
+	MSG "install $@, need admin permissions!"
+	CMD sudo apt install "$@" || FAIL "please install it manually"
+	UP
+}
+
+need_get(){
+	UP
+	[ "$get" ] && return
+
+	MSG "need install wget or curl"
+	INSTALL wget
+
+	UP
+	[ "$get" ] || FAIL "curl or wget not found"
+}
+
+need_xz(){
+	UP
+	[ "$xz" ] && return
+
+	MSG "need install xz or pixz"
+	INSTALL pixz xz
+
+	UP
+	[ "$xz" ] || FAIL "xz or pixz not found"
+}
+
+GET(){
+	need_get
+
+	(
+	[ "$3" ] && CMD cd "$3"
+
+	case $get in
+		*wget*)
+		CMD wget "$2" -O"$1"
+		;;
+		*curl*)
+		CMD curl -fR -jkL "$2" -o"$1"
+		;;
+		*)
+		FAIL "curl or wget not found"
+		;;
+	esac
+	)
+}
+
+CHK(){
+	local f
+	local url
+	local dir
+	local out
+
+	f=$1
+	url=$2
+	dir=$3
+	out=$dir$f
+
+	if [ -s "$out.okay" ] && [ -s "$out.url" ] && grep -qxF "$url" "$out.url" 2>/dev/null; then
+		return 0
+	fi
+
+	rm -f "$out" "$out.okay" "$out.url"
+
+	GET "$f" "$url" "$dir" || return 1
+	[ -s "$out" ] || return 1
+	md5sum "$out" > "$out.okay" || return 1
+	echo "$url" > "$out.url" || return 1
+}
+
+image_info(){
+	local f
+
+	IMG_BOARD=
+	IMG_TYPE=
+	IMG_TAG=
+
+	f=$(basename "$1")
+
+	case $f in
+		edge-2l-*)
+		IMG_BOARD=edge-2l
+		;;
+		edge2l-*)
+		IMG_BOARD=edge-2l
+		;;
+		edge2-*)
+		IMG_BOARD=edge2
+		;;
+	esac
+
+	case $f in
+		*-spi.img.gz|*-spi.img.xz|*-spi.raw.img.gz|*-spi.raw.img.xz)
+		IMG_TYPE=spi
+		;;
+		*-sd.img.gz|*-sd.img.xz|*-sd.raw.img.gz|*-sd.raw.img.xz)
+		IMG_TYPE=sd
+		;;
+		*.raw.img.xz|*.img.xz)
+		IMG_TYPE=sd
+		;;
+	esac
+
+	case $f in
+		*-oowow-*)
+		IMG_TAG=oowow
+		;;
+		*-android-*)
+		IMG_TAG=android
+		;;
+		*-ubuntu-*)
+		IMG_TAG=ubuntu
+		;;
+	esac
+}
+
+set_type_dst(){
+	case $1 in
+		spi)
+		TYPE=spi
+		DST=spi
+		DEST=SPINOR
+		;;
+		sd|emmc)
+		TYPE=sd
+		DST=emmc
+		DEST=
+		;;
+	esac
+}
+
+adopt_image_info(){
+	image_info "$1"
+
+	[ "$IMG_BOARD" ] && [ "$ARG_BOARD" ] && [ "$IMG_BOARD" != "$ARG_BOARD" ] && {
+		FAIL "image board is $IMG_BOARD but argument requested $ARG_BOARD"
+	}
+
+	if [ "$IMG_TAG" ] && [ "$TAG" ] && [ "$IMG_TAG" != "$TAG" ]; then
+		FAIL "image tag is $IMG_TAG but argument requested $TAG"
+	fi
+
+	if [ "$IMG_TAG" ] && [ ! "$TAG" ]; then
+		TAG=$IMG_TAG
+		TAG_SRC=image
+	fi
+
+	if [ "$IMG_TYPE" ] && [ "$OPT_TYPE" ] && [ "$IMG_TYPE" != "$OPT_TYPE" ]; then
+		FAIL "image type is $IMG_TYPE but option requested $OPT_TYPE"
+	fi
+
+	if [ "$IMG_TYPE" ]; then
+		TYPE=$IMG_TYPE
+		TYPE_SRC=image
+		set_type_dst "$TYPE"
+	fi
+}
+
+normal_base(){
+	echo "$MIRROR/.images/$board/"
+}
+
+normal_catalog(){
+	echo "$(normal_base)_images_"
+}
+
+normal_list_base(){
+	case $TAG in
+		android|ubuntu)
+		echo "dl/$board-$TAG-images.list"
+		;;
+		*)
+		echo "dl/$board-images.list"
+		;;
+	esac
+}
+
+normal_image_paths_all(){
+	need_xz
+
+	GET - "$(normal_catalog)" 2>/dev/null |
+		$xz -dc 2>/dev/null |
+		tar -tf - 2>/dev/null |
+		sed -n 's|^\(.*\.img\.xz\)\.meta$|\1|p' |
+		sort -u
+}
+
+normal_image_paths(){
+	case $TAG in
+		android|ubuntu)
+		normal_image_paths_all | grep "$TAG"
+		;;
+		*)
+		normal_image_paths_all
+		;;
+	esac
+}
+
+enum_list(){
+	awk '{ printf "[%d] %s\n", NR, $0 }'
+}
+
+get_list_normal(){
+	local LL
+
+	LL=$(normal_list_base)
+
+	MSG "list normal images $(normal_catalog)"
+
+	normal_image_paths |
+		tee "$LL.raw" |
+		enum_list |
+		tee "$LL"
+
+	echo "$(normal_base)" > "$LL.url"
+}
+
+get_list_oowow(){
+	local DD
+	local LL
+
+	DD="${DL_OOWOW}versions/$board/"
+	LL="dl/$board-oowow-$TYPE.list"
+
+	MSG "list oowow images $DD"
+
+	GET - "$DD" 2>/dev/null |
+		grep -o "$board-oowow-..........-$TYPE.img.gz" |
+		sort -u |
+		tee "$LL.raw" |
+		enum_list |
+		tee "$LL"
+
+	echo "$DD" > "$LL.url"
+}
+
+get_list(){
+	case $TAG in
+		oowow)
+		get_list_oowow
+		;;
+		android|ubuntu|"")
+		get_list_normal
+		;;
+		*)
+		FAIL "unknown list tag $TAG"
+		;;
+	esac
+}
+
+normal_image_resolve(){
+	local P
+
+	[ "$FILE" ] || return 1
+
+	P=$(
+		normal_image_paths_all |
+			awk -v f="$FILE" '
+				{
+					n=$0
+					sub(/^.*\//, "", n)
+					if (n == f) {
+						print $0
+						exit
+					}
+				}
+			'
+	)
+
+	[ "$P" ] || return 1
+
+	IMG_PATH=$P
+	SRC="$(normal_base)$IMG_PATH"
+	DL="$(normal_base)$(dirname "$IMG_PATH")/"
+
+	return 0
+}
+
+index_resolve(){
+	local LL
+	local P
+
+	[ "$INDEX" ] || return 0
+
+	case $TAG in
+		oowow)
+		LL="dl/$board-oowow-$TYPE.list.raw"
+		[ -s "$LL" ] && [ ! "$REFRESH" ] || get_list_oowow >/dev/null
+		P=$(sed -n "${INDEX}p" "$LL")
+		[ "$P" ] || FAIL "bad index $INDEX"
+
+		IMG_PATH=$P
+		FILE=$(basename "$P")
+		SRC="${DL_OOWOW}versions/$board/$FILE"
+		DL="${DL_OOWOW}versions/$board/"
+		adopt_image_info "$FILE"
+		;;
+
+		android|ubuntu|"")
+		LL=$(normal_list_base)
+		LL="$LL.raw"
+		[ -s "$LL" ] && [ ! "$REFRESH" ] || get_list_normal >/dev/null
+		P=$(sed -n "${INDEX}p" "$LL")
+		[ "$P" ] || FAIL "bad index $INDEX"
+
+		IMG_PATH=$P
+		FILE=$(basename "$P")
+		SRC="$(normal_base)$P"
+		DL="$(normal_base)$(dirname "$P")/"
+		adopt_image_info "$FILE"
+		;;
+
+		*)
+		FAIL "unknown tag $TAG"
+		;;
+	esac
+
+	MSG "selected [$INDEX] $P"
+}
+
+resolve_image(){
+	[ "$INDEX" ] && index_resolve
+
+	[ "$FILE" ] || return 1
+
+	# local existing file/path
+	[ "$LOCAL" ] && return 0
+
+	# direct URL
+	[ "$URL" ] && return 0
+
+	# already resolved by index or URL parser
+	[ "$SRC" ] && return 0
+
+	case $TAG in
+		oowow)
+		SRC="${DL_OOWOW}versions/$board/$FILE"
+		DL="${DL_OOWOW}versions/$board/"
+		return 0
+		;;
+
+		*)
+		normal_image_resolve || FAIL "cant resolve image path for $FILE; use --list"
+		return 0
+		;;
+	esac
+}
+
+source_label(){
+	case $1 in
+		image) echo "[image]" ;;
+		arg) echo "[arg]" ;;
+		usb) echo "[auto detected]" ;;
+		default) echo "[default]" ;;
+		tag) echo "[tag]" ;;
+		option) echo "[option]" ;;
+		index) echo "[index]" ;;
+	esac
+}
+
+print_info(){
+	echo
+	echo "BOARD $board $(source_label "$BOARD_SRC")"
+	[ "$USB_BOARD" ] && echo "USB   $USB_BOARD"
+	[ "$TAG" ] && echo "TAG   $TAG $(source_label "$TAG_SRC")"
+	[ "$INDEX" ] && echo "INDEX $INDEX"
+	[ ! "$TAG" ] && [ ! "$FILE" ] && echo "MODE  normal images catalog"
+	echo "TYPE  $TYPE $(source_label "$TYPE_SRC")"
+	echo "DST   $DST"
+	[ "$FILE" ] && echo "FILE  $FILE"
+	[ "$IMG_PATH" ] && echo "PATH  $IMG_PATH"
+	[ "$LOCAL" ] && echo "LOCAL $LOCAL"
+	[ "$URL" ] && echo "URL   $URL"
+	[ "$SRC" ] && echo "SRC   $SRC"
+	[ "$DL" ] && echo "DL    $DL"
+
+	echo
+	echo "use:"
+
+	case $TAG in
+		oowow)
+		echo "  $NAME $board oowow --list"
+		echo "  $NAME $board oowow --dl"
+		echo "  $NAME $board oowow --write"
+		echo "  $NAME $board oowow --dl 1"
+		echo "  $NAME $board oowow --write 2"
+		;;
+		android|ubuntu)
+		echo "  $NAME $board $TAG --list"
+		echo "  $NAME $board $TAG --dl 1"
+		echo "  $NAME $board $TAG --write 1"
+		;;
+		*)
+		if [ "$FILE" ]; then
+			echo "  $NAME $FILE --dl"
+			echo "  $NAME $FILE --write"
+		else
+			echo "  $NAME $board --list"
+			echo "  $NAME $board --dl 1"
+			echo "  $NAME $board --write 2"
+			echo "  $NAME $board ubuntu --list"
+			echo "  $NAME $board android --list"
+			echo "  $NAME $board oowow --list"
+			echo "  $NAME $board oowow --write"
+		fi
+		;;
+	esac
+
+	echo
+}
+
+download_image(){
+	[ "$FILE" ] || FAIL "no exact image selected; use --list first or use oowow mode"
+
+	mkdir -p dl || FAIL "mkdir dl"
+
+	if [ "$LOCAL" ]; then
+		MSG "local image $LOCAL"
+		echo "$LOCAL"
+		return
+	fi
+
+	[ "$SRC" ] || FAIL "no source URL resolved for $FILE"
+
+	[ "$REFRESH" ] && {
+		MSG "refresh $FILE"
+		rm -f "dl/$FILE" "dl/$FILE.okay" "dl/$FILE.url"
+	}
+
+	CHK "$FILE" "$SRC" dl/ || FAIL "download fail $SRC"
+
+	echo "$PWD/dl/$FILE"
+}
+
+decompress_image(){
+	PKG=dl/$FILE
+	IMG=${PKG%.*}
+
+	case "$LOCAL" in
+		"")
+		;;
+		*)
+		PKG="$LOCAL"
+		IMG=$(basename "$LOCAL")
+		IMG=${IMG%.??}
+		;;
+	esac
+
+	case $PKG in
+		*.gz)
+		[ "$gz" ] || INSTALL gzip pigz
+		MSG "decompress $PKG wait..."
+		CMD $gz -dc < "$PKG" > "$IMG" || FAIL "decompress fail"
+		;;
+		*.xz)
+		[ "$xz" ] || INSTALL pixz xz
+		MSG "decompress $PKG wait..."
+		CMD $xz -dc < "$PKG" > "$IMG" || FAIL "decompress fail"
+		;;
+		*)
+		IMG=$PKG
+		;;
+	esac
+}
+
+prepare_tool(){
+	mkdir -p "$TOOL_BIN" || FAIL "mkdir $TOOL_BIN"
+
+	ARCH=$(uname -m 2>/dev/null)
+
+	case $ARCH in
+		x86_64)
+		;;
+		*)
+		FAIL "not supported arch $ARCH"
+		;;
+	esac
+
+	(
+	cd "$TOOL_BIN" || FAIL "cd $TOOL_BIN"
+
+	CHK "$TOOL" "$TOOL_DL" || FAIL "tool"
+
+	[ -x "$TOOL" ] || chmod 0755 "$TOOL"
+
+	CHK "$LOADER" "$LOADER_DL" || FAIL "loader"
+
+	UDEV=/etc/udev/rules.d/80-rockchip-usb.rules
+
+	grep -q OKAY2 "$UDEV" 2>/dev/null || {
+
+	MSG "install usb device permission to $UDEV, need admin permissions!"
+
+	cat <<EOF | sudo tee "$UDEV"
+#OKAY2
+#Maskrom
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="2207", ATTR{idProduct}=="330c", MODE:="0666"
+#Loader
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="2207", ATTR{idProduct}=="350b", MODE:="0666"
+#Rockchip Maskrom / new generation
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="2207", ATTR{idProduct}=="350e", MODE:="0666"
+#Khadas rescue/RNDIS
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="0b05", ATTR{idProduct}=="7774", MODE:="0666"
+EOF
+
+	}
+
+	)
+
+	export PATH="$TOOL_BIN:$PATH"
+
+	command -v "$TOOL" >/dev/null 2>&1 || FAIL "cant find $TOOL"
+}
+
+loader(){
+	CMDF $TOOL LD | grep Mode=Maskrom
+	CMDF $TOOL DB "bin/$LOADER" $DEST
+	sleep 1
+	CMDF $TOOL RCI
+	CMDF $TOOL RCB
+	sleep 1
+}
+
+setup_dst(){
+	case $DST in
+		spi)
+		CMD $TOOL SSD 5
+		;;
+		*)
+		CMD $TOOL SSD 2 # EMMC
+		;;
+	esac
+
+	sleep 1
+}
+
+wait_maskrom(){
+	TRY=1
+
+	while [ "1" ]; do
+		$TOOL LD | grep Mode=Maskrom && break
+		printf "\r[i] wait device with upgrade mode - need press KEY_FN 3x times - $TRY"
+		sleep 1
+		TRY=$((TRY+1))
+	done
+
+	echo
+}
+
+write_image(){
+	MSG "write $IMG to $DST wait..."
+
+	wait_maskrom
+
+	echo "[i] check is ready ..."
+
+	loader    || FAIL "oops loader fail"
+	setup_dst || FAIL "oops can setup DST: $DST"
+
+	CMD $TOOL WL 0 "$IMG" || FAIL "oops"
+
+	[ "$FILE" ] && echo && echo "[i] OKAY $FILE was written to $DST"
+	[ "$RESET" ] && MSG "reset device" && CMD $TOOL RD 0
+	[ "$RESET" ] || MSG "no reset device"
+}
+
+clean_storage(){
+	echo "Clean storage $DST"
+
+	wait_maskrom
+
+	loader    || FAIL "oops loader fail"
+	setup_dst || FAIL "oops can setup DST: $DST"
+
+	case $DST in
+		SPI|spi)
+		CMDF $TOOL EL 0x4000 0x10
+		CMDF $TOOL EL 0x5000 0x10
+		;;
+		*)
+		CMDF $TOOL EL 0x0 0x100000
+		;;
+	esac
 }
 
 NAME=rockchip-burn
-PROG=$(realpath -s "$0")
+PROG=$(realpath -s "$0" 2>/dev/null || echo "$0")
 WORK=$(dirname "$PROG")
 
 TOOL_HOME=~/upgrade_tool
 TOOL_BIN="$TOOL_HOME/bin"
 
 : ${MIRROR:=dl.khadas.com}
-debug "MIRROR: $MIRROR"
 : ${SOURCE:=https://raw.githubusercontent.com/hyphop/rockchip-burn/main/$NAME}
 : ${DL_OOWOW:=$MIRROR/products/oowow/system/}
 
-FAIL(){
-    echo "[e] $@">&2
-    exit 1
-}
-MSG(){
-    echo "[i] $@"
-}
-CMD(){
-    echo "### $@">&2
-    "$@"
-}
-CMDF(){
-    echo "### $@">&2
-    "$@" || exit 1
-}
-
-lowcase(){
-    echo "$@" | tr '[:upper:]' '[:lower:]'
-}
-
-UP(){
-gz=${GZ-$(which pigz || which gzip)}
-xz=${XZ-$(which pixz || which xz)}
-get=${GET-$(which curl || which wget)}
-}
-
-UP
-
-INSTALL(){
-    MSG "install $@, need admin permissions!"
-    CMD sudo apt install $@ || FAIL "please install it manually"
-    UP
-}
-
-[ "$get" ] || {
-    MSG "need install wget or curl"
-    INSTALL wget
-}
-
-[ "$get" ] || FAIL "curl or wget not found"
-
-GET(){
-    (
-    [ "$3" ] && CMD cd "$3"
-
-    case $get in
-	*wget*)
-	CMD wget "$2" -O"$1"
-	;;
-	*curl*)
-	CMD curl -R -jkL "$2" -o"$1"
-	;;
-    esac
-    )
-}
-
-CHK(){
-    [ -s "$3$1.okay" ] || {
-	GET "$@" && md5sum "$3$1" > "$3$1.okay"
-    }
-}
-
-usb_list(){
-echo "Usb list:"
-usb_find
-#echo $USB_ID
-}
-
-
-
-echo "rockchip-burn $@">&2
-
-for VER in $(grep -m1 VER "$0"); do true; done
-
-: ${DST:=emmc}
-TYPE=sd
+ACTION=info
 RESET=1
 
-case $1 in
-	edge2l|edge-2l|Edge-2l|Edge-2L) BOARD=edge-2l ; shift ;;
-	edge2|Edge2) BOARD=edge2 ; shift ;;
+ARG_BOARD=${BOARD-}
+IMG_BOARD=
+IMG_TYPE=
+IMG_TAG=
+OPT_TYPE=
+TAG=
+TAG_SRC=
+FILE=
+URL=
+SRC=
+LOCAL=
+DL=
+TYPE=
+TYPE_SRC=
+DST=
+DEST=
+INDEX=
+IMG_PATH=
+REFRESH=
+
+while [ "$1" ]; do
+	a=$1
+	shift
+
+	case $a in
+		edge2|Edge2)
+		ARG_BOARD=edge2
+		;;
+		edge2l|edge-2l|Edge-2l|Edge-2L)
+		ARG_BOARD=edge-2l
+		;;
+
+		oowow|android|ubuntu)
+		TAG=$a
+		TAG_SRC=arg
+		;;
+
+		http://*|https://*)
+		URL=$a
+		SRC=$a
+		DL=$(dirname "$a")/
+		FILE=$(basename "$a")
+		adopt_image_info "$FILE"
+		;;
+
+		*.img.gz|*.img.xz|*.raw.img.gz|*.raw.img.xz)
+		FILE=$(basename "$a")
+		adopt_image_info "$FILE"
+
+		case $a in
+			*/*)
+			[ -s "$a" ] || FAIL "local image not found $a"
+			LOCAL=$(realpath "$a")
+			MSG "use local file $LOCAL"
+			;;
+			*)
+			if [ -s "$a" ]; then
+				LOCAL=$(realpath "$a")
+				MSG "use local file $LOCAL"
+			fi
+			;;
+		esac
+		;;
+
+		--devices|--device)
+		ACTION=devices
+		;;
+		-w|--write)
+		ACTION=write
+		;;
+		-l|--list)
+		ACTION=list
+		;;
+		--dl|--download|-g|--get)
+		ACTION=dl
+		;;
+		--clean)
+		ACTION=clean
+		;;
+		-t|--test)
+		ACTION=test
+		;;
+		-v|--version)
+		echo "$VER"
+		exit
+		;;
+		-h|--help)
+		ACTION=help
+		;;
+		-u|--update)
+		ACTION=update
+		;;
+		--readme)
+		echo "# $NAME"
+		echo
+		echo '```'
+		sh "$0" --help
+		echo '```'
+		exit
+		;;
+
+		--spi)
+		OPT_TYPE=spi
+		;;
+		--sd|--emmc)
+		OPT_TYPE=sd
+		;;
+		--no-reset)
+		RESET=
+		;;
+		-r|--refresh)
+		REFRESH=1
+		;;
+
+		[0-9]*)
+		case $a in
+			*[!0-9]*)
+			FAIL "unknown argument $a"
+			;;
+			*)
+			[ "$INDEX" ] && FAIL "only one index allowed"
+			INDEX=$a
+			;;
+		esac
+		;;
+
+		-*)
+		FAIL "unknown option $a"
+		;;
+
+		*)
+		FAIL "unknown argument $a"
+		;;
+	esac
+done
+
+[ "$INDEX" ] && [ "$FILE" ] && FAIL "use either image filename or index, not both"
+
+case $ACTION in
+	help)
+	HELP
+	;;
+	devices)
+	usb_list
+	exit
+	;;
+	update)
+	need_get
+
+	RND=${RANDOM-$$}
+	VER_OLD=$VER
+
+	MSG "self update mode $PROG from $VER_OLD to ..."
+
+	[ -d "$WORK/.git" ] && FAIL "inside Git not allowed"
+
+	GET "$NAME.new" "$SOURCE?$RND" /tmp/ || FAIL "download update fail"
+	VER_NEW=$(grep -m1 "^VER=" "/tmp/$NAME.new")
+	cp "/tmp/$NAME.new" "$PROG" || FAIL "update fail..."
+	MSG "OKAY self updated $VER_NEW"
+	exit 0
+	;;
 esac
 
-USB_ID=$(usb_find)
-debug "usb_id: +$USB_ID+"
+USB_BOARD=$(usb_board_find)
+debug "usb_board: +$USB_BOARD+"
 
-case $USB_ID in
-	2207:350e) BOARD=edge-2l ;;
-esac
+if [ "$IMG_BOARD" ]; then
+	BOARD=$IMG_BOARD
+	BOARD_SRC=image
+elif [ "$ARG_BOARD" ]; then
+	BOARD=$ARG_BOARD
+	BOARD_SRC=arg
+elif [ "$USB_BOARD" ]; then
+	BOARD=$USB_BOARD
+	BOARD_SRC=usb
+else
+	BOARD=edge2
+	BOARD_SRC=default
+fi
 
-: ${BOARD:=edge2}
-board=$(lowcase $BOARD)
+board=$(lowcase "$BOARD")
+
+if [ "$IMG_TAG" ] && [ ! "$TAG" ]; then
+	TAG=$IMG_TAG
+	TAG_SRC=image
+fi
+
+[ "$TAG_SRC" ] || [ ! "$TAG" ] || TAG_SRC=arg
+
+if [ "$IMG_TYPE" ] && [ "$OPT_TYPE" ] && [ "$IMG_TYPE" != "$OPT_TYPE" ]; then
+	FAIL "image type is $IMG_TYPE but option requested $OPT_TYPE"
+fi
+
+if [ "$IMG_TYPE" ]; then
+	TYPE=$IMG_TYPE
+	TYPE_SRC=image
+elif [ "$OPT_TYPE" ]; then
+	TYPE=$OPT_TYPE
+	TYPE_SRC=option
+else
+	case $TAG in
+		oowow)
+		TYPE=spi
+		TYPE_SRC=tag
+		;;
+		*)
+		TYPE=sd
+		TYPE_SRC=default
+		;;
+	esac
+fi
+
+set_type_dst "$TYPE"
 
 case $board in
-	edge-2l) LOADER=rk3576_spl_loader_v1.10.108.bin ;;
+	edge-2l)
+	LOADER=rk3576_spl_loader_v1.10.108.bin
+	;;
 esac
 
 : ${LOADER:=rk3588_spl_loader_v1.08.111.bin}
@@ -210,336 +1095,127 @@ esac
 : ${LOADER_DL:=$MIRROR/products/$board/firmware/boot/$LOADER}
 : ${UT:=$TOOL_BIN/$TOOL}
 
-for a in "$@"; do
-    case $a in
-	-t|--test)
+case $TAG in
+	oowow)
+	DL=${DL:-${DL_OOWOW}versions/$board/}
+	[ "$FILE" ] || [ "$INDEX" ] || FILE=$board-oowow-latest-$TYPE.img.gz
+	;;
+
+	android|ubuntu)
+	DL=${DL:-$(normal_base)}
+	;;
+
+	"")
+	DL=${DL:-$(normal_base)}
+	;;
+
+	*)
+	FAIL "unknown tag $TAG"
+	;;
+esac
+
+case $FILE-$DST in
+	*-spi.img.gz-emmc|*-spi.img.xz-emmc|*-spi.raw.img.gz-emmc|*-spi.raw.img.xz-emmc)
+	FAIL "refuse: SPI image selected but destination is emmc"
+	;;
+	*-sd.img.gz-spi|*-sd.img.xz-spi|*-sd.raw.img.gz-spi|*-sd.raw.img.xz-spi)
+	FAIL "refuse: SD/EMMC image selected but destination is spi"
+	;;
+esac
+
+case $ACTION in
+	test)
 	echo "Test mode"
 	usb_list
-	CMD $UT -v
+	[ -x "$UT" ] && CMD "$UT" -v
 	exit
 	;;
-	-v|--version)
-	echo $VER && exit
-	;;
-	--clean)
-	MODE=clean
-	;;
-	--no-reset)
-	RESET=
-	;;
-	-r|--refresh)
-	REFRESH=1
-	;;
-	-g|--get)
-	MODE=write
-	GET_ONLY=1
-	;;
-	--spi)
-	DST=spi
-	TYPE=spi
-	DEST=SPINOR
-	;;
-	-w|--write)
-	MODE=write
-	;;
-	-l|--list)
-	MODE=list
-	;;
-	--readme)
-	echo "# $NAME"
-	echo
-	echo '```'
-	sh $0 --help
-	echo '```'
+
+	info)
+	print_info
 	exit
 	;;
-	-h|--help)
-	MODE=help
+
+	list|dl|write|clean)
 	;;
-	-u|--update)
-	MODE=update
-	;;
-	$board-*.img.gz)
-	MODE=write
-	[ -s "$a" ] && SRC=$(realpath "$a") && \
-	    echo "[i] use a local file $SRC">&2 && LOCAL=y && continue
-	DL="${DL_OOWOW}versions/$board/"
-	FILE="$a"
-	SRC="$DL$FILE"
-	echo "[i] remote file $SRC">&2
-	;;
-	http://*|https://*)
-	SRC="$a"
-	DL=$(dirname "$a")/
-	FILE=$(basename "$a")
-	MODE=write
-	;;
+
 	*)
-	SRC="$a"
-	[ -s "$a" ] && SRC=$(realpath "$a") && \
-	    echo "[i] use a local file $SRC">&2 && LOCAL=y
-	MODE=write
+	FAIL "unknown action $ACTION"
 	;;
-    esac
-done
-
-DL=${DL:-$MIRROR/.images/$board/}
-
-case $MODE in
-    ""|help)
-    HELP
-    ;;
-
-    update)
-
-    RND=${RANDOM-$$}
-
-    VER_OLD=$(grep -m1 "^## VER" $PROG)
-
-    MSG "self update mode $PROG from $VER_OLD to ..."
-
-    [ -d "$WORK/.git" ] && FAIL "inside Git not allowed"
-
-    GET "$NAME.new" "$SOURCE?$RND" /tmp/ || FAIL "download update fail"
-    VER_NEW=$(grep -m1 "^## VER" /tmp/$NAME.new)
-    cp /tmp/$NAME.new $PROG || FAIL "update fail..."
-    MSG "OKAY self updated $VER_NEW"
-    exit 0
-    ;;
-    write|clean|list)
-    ;;
-    *)
-    FAIL "unknown mode "
-    ;;
 esac
 
-mkdir -p $TOOL_BIN || FAIL "mkdir $TOOL_BIN"
-mkdir -p $TOOL_HOME/dl || FAIL "mkdir dl"
+mkdir -p "$TOOL_HOME/dl" || FAIL "mkdir dl"
+CMD cd "$TOOL_HOME" || FAIL "cd fail"
 
-CMD cd $TOOL_HOME || FAIL "cd fail"
+case $ACTION in
+	list)
+	get_list
+	exit
+	;;
 
-ARCH=$(uname -m 2>/dev/null)
+	dl)
+	resolve_image || FAIL "no exact image selected; use --list first or use oowow mode"
 
-case $ARCH in
-    x86_64)
-    ;;
-    *)
-    FAIL "not supported arch $ARCH"
-    ;;
-esac
+	echo MODE dl
+	echo BOARD "$board"
+	[ "$TAG" ] && echo TAG "$TAG"
+	[ "$INDEX" ] && echo INDEX "$INDEX"
+	echo FILE "$FILE"
+	[ "$IMG_PATH" ] && echo PATH "$IMG_PATH"
+	echo TYPE "$TYPE"
+	echo DST "$DST"
+	echo SRC "$SRC"
+	echo DL "$DL"
 
-( # pre check
+	download_image
+	exit
+	;;
 
-cd $TOOL_BIN || FAIL "cd $TOOL_BIN"
-CHK "$TOOL" "$TOOL_DL" || FAIL "tool"
+	write)
+	resolve_image || FAIL "no exact image selected; use --list first or use oowow mode"
 
-[ -x "$TOOL" ] || chmod 0755 $TOOL
+	echo MODE write
+	echo BOARD "$board"
+	[ "$TAG" ] && echo TAG "$TAG"
+	[ "$INDEX" ] && echo INDEX "$INDEX"
+	echo FILE "$FILE"
+	[ "$IMG_PATH" ] && echo PATH "$IMG_PATH"
+	echo TYPE "$TYPE"
+	echo DST "$DST"
+	echo SRC "$SRC"
+	echo DL "$DL"
 
-CHK "$LOADER" "$LOADER_DL" || FAIL "loader"
+	prepare_tool
+	download_image
+	decompress_image
+	write_image
+	exit
+	;;
 
-UDEV=/etc/udev/rules.d/80-rockchip-usb.rules
+	clean)
+	echo MODE clean
+	echo BOARD "$board"
+	echo TYPE "$TYPE"
+	echo DST "$DST"
 
-grep -q OKAY2 $UDEV 2>/dev/null || {
-
-MSG "install usb device permission to $UDEV, need admin permissions!"
-
-cat <<EOF | sudo tee $UDEV
-#OKAY2
-#Maskrom
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="2207", ATTR{idProduct}=="330c", MODE:="0666"
-#Loader
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="2207", ATTR{idProduct}=="350b", MODE:="0666"
-#Rockchip Maskrom (new generation)
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="2207", ATTR{idProduct}=="350e", MODE:="0666"
-EOF
-
-}
-
-)
-
-export PATH="$TOOL_BIN:$PATH"
-#echo $PATH
-
-loader(){
-	local DEST
-	CMDF $TOOL LD | grep Mode=Maskrom
-	CMDF $TOOL DB "bin/$LOADER" $DEST
-	sleep 1
-	CMDF $TOOL RCI
-	CMDF $TOOL RCB
-	#CMDF $TOOL UL "bin/$LOADER" -noreset $DEST
-	sleep 1
-}
-
-setup_dst(){
-case $DST in
-    spi)
-    CMD $TOOL SSD 5
-    ;;
-    *)
-    #CMD $TOOL SSD
-    CMD $TOOL SSD 2 # EMMC
-    ;;
-esac
-sleep 1
-}
-
-which $TOOL || FAIL "cant find $TOOL"
-
-case $MODE in
-    clean)
-	echo "Clean storage $DST"
-	loader    || FAIL "oops loader fail"
-	setup_dst || FAIL "oops can setup DST: $DST"
-
-	case $DST in
-		SPI|spi)
-	CMDF $TOOL EL 0x4000 0x10
-	CMDF $TOOL EL 0x5000 0x10
-		;;
-		*)
-	CMDF $TOOL EL 0x0 0x100000
-		;;
-	esac
+	prepare_tool
+	clean_storage
 	exit
 	;;
 esac
-
-
-case $SRC in
-    oowow)
-    DL=$DL_OOWOW
-    DST=spi
-    TYPE=spi
-    FILE=$BOARD-oowow-latest-$TYPE.img.gz
-    #DST=spi
-    ;;
-#    android)
- #   FILE=$BOARD-android-12-v230114.raw.img.xz
-  #  DST=emmc
-  #  ;;
- #   ubuntu)
-  #  FILE=$BOARD-ubuntu-22.04-gnome-linux-5.10-fenix-1.4-221229.img.xz
-   # DST=emmc
-   # ;;
-esac
-
-get_list(){
-
-case $1-$2 in
-    list-)
-    echo "!$1">&2
-    LL="dl/$board.list"
-    GET - "$DL" | grep -o "${board}-[^\" ]*\.xz" | sort -u | tee "$LL"
-    echo "$DL" > "$LL.url"
-    ;;
-    list-oowow)
-    echo "!$1-$2:">&2
-    DD="${DL}versions/$board/"
-    LL="dl/$board-oowow.list"
-    GET - "$DD" 2>/dev/null | grep -o $board-$SRC-..........-$TYPE.img.gz | sort -u | tee "$DD"
-    echo "$DD" > "$LL.url"
-    ;;
-    *)
-    #echo "??? $MODE-$SRC"
-    ;;
-esac
-}
-
-get_list $MODE $SRC
-
-[ "$MODE" = "list" ] && exit
-
-[ "$1" ] && {
-echo --
-D=dl/$board.list
-[ -s "$D" ] || get_list list
-F=$(grep -m1 "$1" "$D")
-[ "$F" ] && FILE="$F" && DL=$(cat "$D.url")
-echo "[$@]"
-echo --
-}
-
-PKG=dl/$FILE
-IMG=${PKG%.*}
-
-echo MODE $MODE
-
-[ "$REFRESH" ] && {
-    MSG "refresh mode"
-    [ -s "dl/$FILE" ] && {
-	MSG "refresh $FILE"
-	rm -rf "dl/$FILE" "dl/$FILE.okay"
-    }
-}
-
-case "$LOCAL" in
-    "")
-    CHK "$FILE" "$DL$FILE" dl/ || FAIL "oops $FILE"
-    ;;
-    *)
-    PKG="$SRC"
-    IMG=$(basename "$SRC")
-    IMG=${IMG%.??}
-    echo "LOCAL: $PKG -> $IMG"
-    ;;
-esac
-
-case $PKG in
-    *.gz)
-    [ "$gz" ] || INSTALL gzip pigz
-    MSG "decompress $PKG wait..."
-    CMD $gz -dc < $PKG > $IMG || FAIL "decompress fail"
-    LOCAL=
-    ;;
-    *.xz)
-    [ "$xz" ] || INSTALL pixz xz
-    MSG "decompress $PKG wait..."
-    CMD $xz -dc < $PKG > $IMG || FAIL "decompress fail"
-    LOCAL=
-    ;;
-esac
-
-PWD=$(pwd)
-
-[ "$GET_ONLY" ] && {
-MSG "get image only"
-echo "$PWD/$PKG"
-exit 0
-}
-
-MSG "write $IMG to $DST wait..."
-
-[ "$LOCAL" ] && IMG=$PKG
-
-TRY=1
-
-while [ "1" ] ; do
-    $TOOL LD | grep Mode=Maskrom && break
-    printf "\r[i] wait device with upgrade mode - need press KEY_FN 3x times - $TRY" && sleep 1
-    TRY=$((TRY+1))
-done
-
-echo
-
-echo "[i] check is ready ..."
-
-#$TOOL TD || $TOOL DB "bin/$LOADER" || exit 4
-loader
-setup_dst
-
-CMD $TOOL WL 0 "$IMG" || FAIL "oops"
-
-[ "$FILE" ]  && echo && echo "[i] OKAY $FILE was written to $DST"
-[ "$RESET" ] && MSG "reset device" && CMD $TOOL RD 0
-[ "$RESET" ] || MSG "no reset device"
 
 exit
 <<EOF
 
-# edge2l
-Bus 007 Device 033: ID 2207:350e Fuzhou Rockchip Electronics Company
+# edge2l rescue / RNDIS
+Bus 008 Device 006: ID 0b05:7774 ASUSTek Computer, Inc.
+iManufacturer rescueip:172.22.1.1:172.22.1.2
+iProduct edge-2l-14aa0
 
-# edge2
+# edge2l Rockchip burn
+Bus 007 Device 011: ID 2207:350e Fuzhou Rockchip Electronics Company
+
+# edge2 Rockchip burn
 Bus 007 Device 035: ID 2207:350b Fuzhou Rockchip Electronics Company
 
+EOF
